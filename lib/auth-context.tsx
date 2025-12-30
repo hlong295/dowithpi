@@ -75,67 +75,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   console.log("[v0] AuthProvider version:", AUTH_VERSION)
 
   useEffect(() => {
-		const dbgEnabled = () => {
-			try {
-				const sp = new URLSearchParams(window.location.search)
-				if (sp.get("dbg") === "1") return true
-				if (localStorage.getItem("pitodo_dbg") === "1") return true
-				return false
-			} catch {
-				return false
-			}
-		}
-		const dbg = (msg: string, data?: any) => {
-			try {
-				if (typeof window === "undefined") return
-				if (!dbgEnabled()) return
-				;(window as any).__PITODO_DBG = (window as any).__PITODO_DBG || []
-				;(window as any).__PITODO_DBG.push({ t: Date.now(), msg, data })
-			} catch {
-				// ignore
-			}
-		}
-		dbg(`Auth init (${AUTH_VERSION})`)
-		// Normalize persisted user payloads and guarantee `user.type` exists.
-		// This prevents crashes like: undefined is not an object (evaluating 'user.email.split').
-		const normalizeUser = (raw: any): User | null => {
-			if (!raw || typeof raw !== "object") return null
-			const inferredType: "pi" | "email" | undefined =
-				(raw.type as any) || (raw.authType as any) || (raw.pi_username ? "pi" : raw.email ? "email" : undefined)
-			if (inferredType === "pi") {
-				const username = raw.username ?? raw.pi_username ?? ""
-				// Prefer internal UUID (public.pi_users.id) when available.
-				const uid = raw.piUserId ?? raw.pi_user_id ?? raw.uid ?? raw.pi_uid ?? raw.id ?? ""
-				if (!uid) return null
-				return {
-					type: "pi",
-					uid,
-					username,
-					accessToken: raw.accessToken ?? raw.access_token ?? "",
-					isAdmin: Boolean(raw.isAdmin ?? raw.is_admin ?? username === ROOT_ADMIN_USERNAME),
-					role: (raw.role ?? raw.user_role ?? "redeemer") as any,
-					verificationStatus: (raw.verificationStatus ?? raw.verification_status ?? "unverified") as any,
-					providerApproved: Boolean(raw.providerApproved ?? raw.provider_approved ?? false),
-				} as PiUser
-			}
-			if (inferredType === "email") {
-				const uid = raw.uid ?? raw.id ?? ""
-				const email = raw.email ?? ""
-				if (!uid) return null
-				return {
-					type: "email",
-					uid,
-					email,
-					username: raw.username ?? email.split("@")[0] ?? "",
-					isAdmin: Boolean(raw.isAdmin ?? raw.is_admin ?? false),
-					role: (raw.role ?? raw.user_role ?? "redeemer") as any,
-					twoFactorEnabled: Boolean(raw.twoFactorEnabled ?? raw.two_factor_enabled ?? false),
-					verificationStatus: (raw.verificationStatus ?? raw.verification_status ?? "unverified") as any,
-					providerApproved: Boolean(raw.providerApproved ?? raw.provider_approved ?? false),
-				} as EmailUser
-			}
-			return null
-		}
+    const dbgEnabled = () => {
+      try {
+        const sp = new URLSearchParams(window.location.search)
+        if (sp.get("dbg") === "1") return true
+        if (localStorage.getItem("pitodo_dbg") === "1") return true
+        return false
+      } catch {
+        return false
+      }
+    }
+    const dbg = (msg: string, data?: any) => {
+      try {
+        if (typeof window === "undefined") return
+        if (!dbgEnabled()) return
+        ;(window as any).__PITODO_DBG = (window as any).__PITODO_DBG || []
+        ;(window as any).__PITODO_DBG.push({ t: Date.now(), msg, data })
+      } catch {
+        // ignore
+      }
+    }
+    dbg(`Auth init (${AUTH_VERSION})`)
+    // Normalize persisted user payloads and guarantee `user.type` exists.
+    // This prevents crashes like: undefined is not an object (evaluating 'user.email.split').
+    const normalizeUser = (raw: any): User | null => {
+      if (!raw || typeof raw !== "object") return null
+      const inferredType: "pi" | "email" | undefined =
+        (raw.type as any) || (raw.authType as any) || (raw.pi_username ? "pi" : raw.email ? "email" : undefined)
+      if (inferredType === "pi") {
+        const username = raw.username ?? raw.pi_username ?? ""
+        // Prefer internal UUID (public.pi_users.id) when available.
+        const uid = raw.piUserId ?? raw.pi_user_id ?? raw.uid ?? raw.pi_uid ?? raw.id ?? ""
+        if (!uid) return null
+        return {
+          type: "pi",
+          uid,
+          username,
+          accessToken: raw.accessToken ?? raw.access_token ?? "",
+          isAdmin: Boolean(raw.isAdmin ?? raw.is_admin ?? username === ROOT_ADMIN_USERNAME),
+          role: (raw.role ?? raw.user_role ?? "redeemer") as any,
+          verificationStatus: (raw.verificationStatus ?? raw.verification_status ?? "unverified") as any,
+          providerApproved: Boolean(raw.providerApproved ?? raw.provider_approved ?? false),
+        } as PiUser
+      }
+      if (inferredType === "email") {
+        const uid = raw.uid ?? raw.id ?? ""
+        const email = raw.email ?? ""
+        if (!uid) return null
+        return {
+          type: "email",
+          uid,
+          email,
+          username: raw.username ?? email.split("@")[0] ?? "",
+          isAdmin: Boolean(raw.isAdmin ?? raw.is_admin ?? false),
+          role: (raw.role ?? raw.user_role ?? "redeemer") as any,
+          twoFactorEnabled: Boolean(raw.twoFactorEnabled ?? raw.two_factor_enabled ?? false),
+          verificationStatus: (raw.verificationStatus ?? raw.verification_status ?? "unverified") as any,
+          providerApproved: Boolean(raw.providerApproved ?? raw.provider_approved ?? false),
+        } as EmailUser
+      }
+      return null
+    }
 
     const loadPiUserFromCookie = async (): Promise<boolean> => {
       if (typeof window === "undefined") return false
@@ -146,12 +146,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (piUserCookie) {
         try {
-				const raw = JSON.parse(decodeURIComponent(piUserCookie))
-				const normalized = normalizeUser(raw)
-				console.log("[v0] AuthProvider: Parsed user from cookie:", normalized?.username)
+          const raw = JSON.parse(decodeURIComponent(piUserCookie))
+          const normalized = normalizeUser(raw)
+          console.log("[v0] AuthProvider: Parsed user from cookie:", normalized?.username)
 
-				if (normalized && (normalized as any).type === "pi" && normalized.uid) {
-					setUser(normalized)
+          if (normalized && (normalized as any).type === "pi" && normalized.uid) {
+            setUser(normalized)
             setIsLoading(false)
             console.log("[v0] AuthProvider: Pi user loaded from cookie successfully!")
             return true
@@ -175,20 +175,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userData = await response.json()
             console.log("[v0] AuthProvider: Loaded Pi user from API:", userData.piUsername)
 
-						const piUser: PiUser = {
-							type: "pi",
-							// IMPORTANT: use the internal UUID (pi_users.id) as uid so server-side admin actions
-							// (approve provider, create/edit products, etc.) can safely reference provider_id.
-							// piUid is still available in the response but MUST NOT be used as our primary uid.
-							uid: userData.id,
-							piUserId: userData.id,
-							username: userData.piUsername,
-							accessToken: "",
-							isAdmin: Boolean(userData.isAdmin ?? userData.piUsername === ROOT_ADMIN_USERNAME),
-							role: userData.userRole as UserRole,
-							verificationStatus: userData.verificationStatus,
-							providerApproved: Boolean(userData.providerApproved ?? false),
-						}
+            const piUser: PiUser = {
+              type: "pi",
+              // IMPORTANT: use the internal UUID (pi_users.id) as uid so server-side admin actions
+              // (approve provider, create/edit products, etc.) can safely reference provider_id.
+              // piUid is still available in the response but MUST NOT be used as our primary uid.
+              uid: userData.id,
+              piUserId: userData.id,
+              username: userData.piUsername,
+              accessToken: "",
+              isAdmin: Boolean(userData.isAdmin ?? userData.piUsername === ROOT_ADMIN_USERNAME),
+              role: userData.userRole as UserRole,
+              verificationStatus: userData.verificationStatus,
+              providerApproved: Boolean(userData.providerApproved ?? false),
+            }
 
             setUser(piUser)
             setIsLoading(false)
@@ -234,15 +234,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (storedPiUserStr) {
             try {
-						const raw = JSON.parse(storedPiUserStr)
-						const parsedPiUser = normalizeUser(raw)
-						console.log("[v0] AuthProvider: Parsed stored user:", {
-							uid: (parsedPiUser as any)?.uid,
-							username: (parsedPiUser as any)?.username,
-							type: (parsedPiUser as any)?.type,
-						})
+              const raw = JSON.parse(storedPiUserStr)
+              const parsedPiUser = normalizeUser(raw)
+              console.log("[v0] AuthProvider: Parsed stored user:", {
+                uid: (parsedPiUser as any)?.uid,
+                username: (parsedPiUser as any)?.username,
+                type: (parsedPiUser as any)?.type,
+              })
 
-						if (parsedPiUser && (parsedPiUser as any).type === "pi" && parsedPiUser.uid) {
+              if (parsedPiUser && (parsedPiUser as any).type === "pi" && parsedPiUser.uid) {
                 console.log("[v0] AuthProvider: Valid Pi user found! Setting user state...")
                 setUser(parsedPiUser)
                 setIsLoading(false)
@@ -251,16 +251,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               } else {
                 console.log("[v0] AuthProvider: Pi user data invalid, clearing storage")
                 sessionStorage.removeItem(PI_USER_STORAGE_KEY)
-      sessionStorage.removeItem(PI_USER_ID_STORAGE_KEY)
+                sessionStorage.removeItem(PI_USER_ID_STORAGE_KEY)
                 localStorage.removeItem(PI_USER_STORAGE_KEY)
-      localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
+                localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
               }
             } catch (parseErr) {
               console.error("[v0] AuthProvider: Failed to parse Pi user:", parseErr)
               sessionStorage.removeItem(PI_USER_STORAGE_KEY)
-      sessionStorage.removeItem(PI_USER_ID_STORAGE_KEY)
+              sessionStorage.removeItem(PI_USER_ID_STORAGE_KEY)
               localStorage.removeItem(PI_USER_STORAGE_KEY)
-      localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
+              localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
             }
           } else {
             console.log("[v0] AuthProvider: No Pi user in storage")
@@ -280,28 +280,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("[v0] AuthProvider: Found Supabase session for user:", session.user.id)
           const email = session.user.email || undefined
 
-					// ✅ Use the deduped/cached helper to avoid request storms (429) in Pi Browser.
-					// Never throw here—fallback to session data keeps the UI responsive.
-					let userData: any = null
-					try {
-						userData = await ensurePiUserRecord(session.user)
-					} catch (e) {
-						console.warn("[v0] AuthProvider: ensurePiUserRecord failed (fallback to session):", e)
-					}
+          // ✅ Use the deduped/cached helper to avoid request storms (429) in Pi Browser.
+          // Never throw here—fallback to session data keeps the UI responsive.
+          let userData: any = null
+          try {
+            userData = await ensurePiUserRecord(session.user)
+          } catch (e) {
+            console.warn("[v0] AuthProvider: ensurePiUserRecord failed (fallback to session):", e)
+          }
 
-					console.log("[v0] AuthProvider: ensurePiUserRecord returned:", userData?.pi_username || "(fallback)")
+          console.log("[v0] AuthProvider: ensurePiUserRecord returned:", userData?.pi_username || "(fallback)")
 
-						// Email users must always include `type: "email"` and have a safe email value.
-						setUser({
-							type: "email",
-							uid: userData?.id || session.user.id,
-							email: email,
-							username: userData?.pi_username || email || "User",
-							isAdmin: false,
-							twoFactorEnabled: false,
-							role: (userData?.user_role as UserRole) || "redeemer",
-							fullName: userData?.full_name || userData?.pi_username || email || "",
-						})
+          // Email users must always include `type: "email"` and have a safe email value.
+          setUser({
+            type: "email",
+            uid: userData?.id || session.user.id,
+            email: email,
+            username: userData?.pi_username || email || "User",
+            isAdmin: false,
+            twoFactorEnabled: false,
+            role: (userData?.user_role as UserRole) || "redeemer",
+            fullName: userData?.full_name || userData?.pi_username || email || "",
+          })
         }
       } catch (error) {
         console.error("[v0] AuthProvider: initializeAuth error:", error)
@@ -326,9 +326,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("[v0] User signed out, clearing state")
         setUser(null)
         sessionStorage.removeItem(PI_USER_STORAGE_KEY)
-      sessionStorage.removeItem(PI_USER_ID_STORAGE_KEY)
+        sessionStorage.removeItem(PI_USER_ID_STORAGE_KEY)
         localStorage.removeItem(PI_USER_STORAGE_KEY)
-      localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
+        localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
         deleteCookie(PI_USER_COOKIE_KEY)
         deleteCookie("pi_user_id")
         return
@@ -336,29 +336,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (event === "SIGNED_IN" && session?.user) {
         console.log("[v0] User signed in, fetching user data")
-	        const email = session.user.email || undefined
+        const email = session.user.email || undefined
 
-	        try {
-	          // Reuse the dedupe/cache logic (prevents 429 + non-JSON responses in Pi Browser)
-	          const userData = await ensurePiUserRecord(session.user)
-	          const nextUser = createEmailUserFromData(userData, email)
-	
-	          // Avoid re-setting the same user repeatedly (prevents re-renders + repeated wallet loads)
-	          setUser((prev) => {
-	            if (
-	              prev?.type === "email" &&
-	              prev.uid === nextUser.uid &&
-	              prev.username === nextUser.username &&
-	              prev.role === nextUser.role &&
-	              prev.fullName === nextUser.fullName
-	            ) {
-	              return prev
-	            }
-	            return nextUser
-	          })
-	        } catch (error) {
-	          console.error("[v0] Failed to fetch user data:", error)
-	        }
+        try {
+          // Reuse the dedupe/cache logic (prevents 429 + non-JSON responses in Pi Browser)
+          const userData = await ensurePiUserRecord(session.user)
+          const nextUser = createEmailUserFromData(userData, email)
+
+          // Avoid re-setting the same user repeatedly (prevents re-renders + repeated wallet loads)
+          setUser((prev) => {
+            if (
+              prev?.type === "email" &&
+              prev.uid === nextUser.uid &&
+              prev.username === nextUser.username &&
+              prev.role === nextUser.role &&
+              prev.fullName === nextUser.fullName
+            ) {
+              return prev
+            }
+            return nextUser
+          })
+        } catch (error) {
+          console.error("[v0] Failed to fetch user data:", error)
+        }
       }
     })
 
@@ -407,19 +407,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log("[v0] loginWithPi: Backend returned user data:", storedUserData)
 
-				const userData: PiUser = {
-					// ✅ Persist the internal UUID (public.pi_users.id) as the primary uid for app state.
-					// Pi SDK uid is kept via `piUid` (returned from server) so we don't lose it.
-					uid: storedUserData?.id || piUser.uid,
-					username: piUser.username,
-					accessToken: accessToken || "",
-					type: "pi",
-					// ✅ internal UUID in public.pi_users (used for PITD wallet + reviews)
-					piUserId: storedUserData?.id || null,
-					isAdmin: piUser.username === ROOT_ADMIN_USERNAME,
-					role: (storedUserData?.userRole as UserRole) || "redeemer",
-					verificationStatus: storedUserData?.verificationStatus || "unverified",
-				}
+      const userData: PiUser = {
+        // ✅ Persist the internal UUID (public.pi_users.id) as the primary uid for app state.
+        // Pi SDK uid is kept via `piUid` (returned from server) so we don't lose it.
+        uid: storedUserData?.id || piUser.uid,
+        username: piUser.username,
+        accessToken: accessToken || "",
+        type: "pi",
+        // ✅ internal UUID in public.pi_users (used for PITD wallet + reviews)
+        piUserId: storedUserData?.id || null,
+        isAdmin: piUser.username === ROOT_ADMIN_USERNAME,
+        role: (storedUserData?.userRole as UserRole) || "redeemer",
+        verificationStatus: storedUserData?.verificationStatus || "unverified",
+      }
 
       console.log("[v0] loginWithPi: Created userData object:", userData)
 
@@ -428,8 +428,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionStorage.setItem(PI_USER_STORAGE_KEY, userDataJson)
         localStorage.setItem(PI_USER_STORAGE_KEY, userDataJson)
         if (userData.piUserId) {
-          try { localStorage.setItem(PI_USER_ID_STORAGE_KEY, String(userData.piUserId)) } catch {}
-          try { sessionStorage.setItem(PI_USER_ID_STORAGE_KEY, String(userData.piUserId)) } catch {}
+          try {
+            localStorage.setItem(PI_USER_ID_STORAGE_KEY, String(userData.piUserId))
+          } catch {}
+          try {
+            sessionStorage.setItem(PI_USER_ID_STORAGE_KEY, String(userData.piUserId))
+          } catch {}
         }
         console.log("[v0] loginWithPi: Saved to storage (backup)")
       } catch (e) {
@@ -565,7 +569,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabaseBrowserClient()
     supabase.auth.signOut()
     localStorage.removeItem(PI_USER_STORAGE_KEY)
-      localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
+    localStorage.removeItem(PI_USER_ID_STORAGE_KEY)
     sessionStorage.clear()
     deleteCookie(PI_USER_COOKIE_KEY)
     deleteCookie("pi_user_id")
