@@ -1,9 +1,11 @@
 import { getSupabaseBrowserClient } from "./client"
 
-// ⚠️ IMPORTANT
-// This file is CLIENT-SAFE ONLY.
-// Do NOT import ./server here under any circumstance.
-// All server logic must live in route.ts files.
+/**
+ * IMPORTANT
+ * This file is CLIENT-SAFE ONLY.
+ * Do NOT import ./server here.
+ * All server-side logic must live in app/api/**/route.ts
+ */
 
 export async function getUserByPiUid(piUid: string) {
   const supabase = getSupabaseBrowserClient()
@@ -43,9 +45,3 @@ export async function getPitdWalletBalance(userId: string) {
   if (error && error.code !== "PGRST116") return 0
   return data?.balance || 0
 }
-
-/* 
-⚠️ Các hàm TẠO / UPDATE / ADMIN / TRANSACTION
-→ PHẢI CHUYỂN SANG app/api/**/route.ts
-→ KHÔNG ĐƯỢC để trong queries.ts
-*/
