@@ -1,8 +1,10 @@
 import { getSupabaseBrowserClient } from "./client"
 
-// ✅ IMPORTANT: Do NOT import "./server" at module top-level.
-// This file is imported by client components (auth-context.tsx).
-// If we import "./server" here, it will pull `next/headers` into the client build and fail on Vercel.
+// IMPORTANT:
+// Do NOT import "./server" at top-level here.
+// This file is used by client components; a top-level import would pull in next/headers
+// and can break builds in some deploy environments.
+// We dynamic-import server client only when isServer=true.
 async function getSupabase(isServer: boolean) {
   if (isServer) {
     const mod = await import("./server")
@@ -328,13 +330,16 @@ export async function getProductById(productId: string) {
 
   console.log("[v0] Product detail images:", { id: data.id, name: data.name, allImages, videoUrl })
 
+  // Price mapping (IMPORTANT)
   const mappedPiAmount = Number((data as any).pi_amount ?? (data as any).price_pi ?? (data as any).price ?? 0)
   const mappedPitdAmount = Number((data as any).pitd_amount ?? (data as any).price ?? 0)
 
+  // Flash sale mapping
   const flashSaleEnabled = Boolean((data as any).flash_sale_enabled)
   const flashSaleStartDate = (data as any).flash_sale_start_date ? new Date((data as any).flash_sale_start_date) : undefined
   const flashSaleEndDate = (data as any).flash_sale_end_date ? new Date((data as any).flash_sale_end_date) : undefined
 
+  // IMPORTANT: PI and PITD flash prices are separate fields in DB.
   const flashSalePiPriceRaw =
     (data as any).flash_sale_pi_price ?? (data as any).flash_sale_pi_amount ?? (data as any).flash_sale_price_pi
   const flashSalePitdPriceRaw =
