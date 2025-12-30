@@ -1,8 +1,18 @@
 import { getSupabaseBrowserClient } from "./client"
-import { getSupabaseServerClient } from "./server"
+
+// ✅ IMPORTANT: Do NOT import "./server" at module top-level.
+// This file is imported by client components (auth-context.tsx).
+// If we import "./server" here, it will pull `next/headers` into the client build and fail on Vercel.
+async function getSupabase(isServer: boolean) {
+  if (isServer) {
+    const mod = await import("./server")
+    return await mod.getSupabaseServerClient()
+  }
+  return getSupabaseBrowserClient()
+}
 
 export async function getUserByPiUid(piUid: string, isServer = false) {
-  const supabase = isServer ? await getSupabaseServerClient() : getSupabaseBrowserClient()
+  const supabase = await getSupabase(isServer)
 
   const { data, error } = await supabase.from("pi_users").select("*").eq("pi_uid", piUid).single()
 
@@ -15,7 +25,7 @@ export async function getUserByPiUid(piUid: string, isServer = false) {
 }
 
 export async function getUserByUsername(username: string, isServer = false) {
-  const supabase = isServer ? await getSupabaseServerClient() : getSupabaseBrowserClient()
+  const supabase = await getSupabase(isServer)
 
   const { data, error } = await supabase.from("pi_users").select("*").eq("pi_username", username).maybeSingle()
 
@@ -280,10 +290,7 @@ export async function getProductById(productId: string) {
     return null
   }
 
-  const { data: reviewsData, error: reviewsError } = await supabase
-    .from("reviews")
-    .select("rating")
-    .eq("product_id", productId)
+  const { data: reviewsData } = await supabase.from("reviews").select("rating").eq("product_id", productId)
 
   let averageRating = 0
   let totalReviews = 0
@@ -321,22 +328,17 @@ export async function getProductById(productId: string) {
 
   console.log("[v0] Product detail images:", { id: data.id, name: data.name, allImages, videoUrl })
 
-  // Price mapping (IMPORTANT): Home / Categories already map prices from DB as:
-  //   piAmount   = pi_amount (or price_pi) fallback to price
-  //   pitdAmount = pitd_amount fallback to price
-  // Do NOT apply any implicit conversion here (e.g., price * 10), because it will
-  // diverge from the values stored in DB and the values shown on other screens.
   const mappedPiAmount = Number((data as any).pi_amount ?? (data as any).price_pi ?? (data as any).price ?? 0)
   const mappedPitdAmount = Number((data as any).pitd_amount ?? (data as any).price ?? 0)
 
-  // Flash sale mapping (keep consistent with Home/ProductCard)
   const flashSaleEnabled = Boolean((data as any).flash_sale_enabled)
   const flashSaleStartDate = (data as any).flash_sale_start_date ? new Date((data as any).flash_sale_start_date) : undefined
   const flashSaleEndDate = (data as any).flash_sale_end_date ? new Date((data as any).flash_sale_end_date) : undefined
 
-  // IMPORTANT: PI and PITD flash prices are separate fields in DB.
-  const flashSalePiPriceRaw = (data as any).flash_sale_pi_price ?? (data as any).flash_sale_pi_amount ?? (data as any).flash_sale_price_pi
-  const flashSalePitdPriceRaw = (data as any).flash_sale_pitd_price ?? (data as any).flash_sale_pitd_amount ?? (data as any).flash_sale_price_pitd
+  const flashSalePiPriceRaw =
+    (data as any).flash_sale_pi_price ?? (data as any).flash_sale_pi_amount ?? (data as any).flash_sale_price_pi
+  const flashSalePitdPriceRaw =
+    (data as any).flash_sale_pitd_price ?? (data as any).flash_sale_pitd_amount ?? (data as any).flash_sale_price_pitd
 
   const flashSalePiPrice =
     flashSalePiPriceRaw !== undefined && flashSalePiPriceRaw !== null ? Number(flashSalePiPriceRaw) : undefined
