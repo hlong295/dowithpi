@@ -389,13 +389,36 @@ export default function AccountPage() {
 
 	          // Build auth headers so the server can verify access even if the browser
 	          // does not send cookies (some embedded/webview contexts).
+	          // NOTE: PITD is internal => all reads must go through server API routes.
 	          const headers: Record<string, string> = {
+	            // New (server expects these)
+	            "x-auth-type": user?.type || "unknown",
+	            // Legacy (keep for backward compatibility)
 	            "x-user-type": user?.type || "unknown",
+	          }
+
+	          // If we have a UUID userId, pass it as the internal ID hint.
+	          if (typeof userId === "string" && isUuid(userId)) {
+	            headers["x-pitodo-user-id"] = userId
+	          }
+
+	          // Pi login hints
+	          if (user?.type === "pi") {
+	            const piUserId = (localStorage.getItem("pitodo_pi_user_id") || "").trim()
+	            const piUsername = (
+	              (user as any)?.username ||
+	              localStorage.getItem("pitodo_pi_username") ||
+	              localStorage.getItem("pi_username") ||
+	              ""
+	            ).trim()
+	            if (piUserId) headers["x-pi-user-id"] = piUserId
+	            if (piUsername) headers["x-pi-username"] = piUsername
 	          }
 
 	          // Only send x-user-id when it is a UUID string.
 	          // (Avoid accidental "[object Object]" being sent to server and breaking uuid filters.)
 	          if (typeof userId === "string" && isUuid(userId)) {
+	            headers["x-pitodo-user-id"] = userId
 	            headers["x-user-id"] = userId
 	          }
 
@@ -561,7 +584,10 @@ export default function AccountPage() {
       // Pi login: attach Pi user headers (server verifies)
       if (user.authType === "pi") {
         const piUserId = localStorage.getItem("pitodo_pi_user_id") || ""
-        const piUsername = localStorage.getItem("pitodo_pi_username") || ""
+        // Prefer in-memory username (comes from auth context) because Pi Browser sometimes
+        // does not persist localStorage consistently.
+        const piUsername =
+          (user as any)?.username || localStorage.getItem("pitodo_pi_username") || ""
         if (piUserId) headers["x-pi-user-id"] = piUserId
         if (piUsername) headers["x-pi-username"] = piUsername
       }

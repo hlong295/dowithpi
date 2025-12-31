@@ -165,6 +165,10 @@ function parseCookieValue(cookieHeader: string | null | undefined, name: string)
  * 3) x-pi-user-id header (last-resort for embedded contexts where cookies are blocked)
  */
 export async function getAuthenticatedUserId(req: Request) {
+  // In Pi Browser (especially on mobile), cookies/localStorage can be unreliable.
+  // We accept PI hint headers and (when needed) resolve them to our internal UUID before use.
+  const authType = (req.headers.get("x-auth-type") || "").toLowerCase();
+
   // 1) Supabase access token forwarded by client (email/user login)
   const auth = req.headers.get("authorization") || req.headers.get("Authorization");
   if (auth && auth.toLowerCase().startsWith("bearer ")) {
@@ -192,12 +196,30 @@ export async function getAuthenticatedUserId(req: Request) {
   if (piUser) return extractUserIdFromPiCookie(piUser);
 
   // 3) Header fallbacks (Pi Browser embedded / cookie-restricted)
-  // Some WebViews drop custom headers intermittently, so we accept a few variants.
+  // Some WebViews drop cookies; in that case the client should send PI hints.
+  // We try to resolve PI hints to an internal UUID to avoid passing non-UUIDs
+  // into downstream PITD logic (which can break UUID comparisons).
   const hPi =
     req.headers.get("x-pi-user-id") ||
     req.headers.get("x-pitodo-pi-user-id") ||
     req.headers.get("x-pitodo_pi_user_id") ||
     req.headers.get("x-pitodo_pi_user");
+
+  const hPiUsername = req.headers.get("x-pi-username") || req.headers.get("x-pitodo-pi-username");
+
+  if (authType === "pi") {
+    const hint = (hPiUsername || hPi || "").trim();
+    if (hint) {
+      try {
+        const supabaseAdmin = getAdminSupabase();
+        const resolved = await resolveInternalUserId(supabaseAdmin, hint);
+        if (resolved) return resolved;
+      } catch {
+        // fall through
+      }
+    }
+  }
+
   if (hPi) return extractUserIdFromPiCookie(hPi);
 
   // x-user-id fallback (same-origin calls)
