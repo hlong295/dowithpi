@@ -565,6 +565,7 @@ export default function AccountPage() {
       const res = await fetch("/api/pitd/transactions", {
         method: "GET",
         headers,
+        credentials: "include",
       })
 
       const payload = await res.json().catch(() => null)

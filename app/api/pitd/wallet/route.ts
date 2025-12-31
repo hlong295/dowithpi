@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/config"
 import { resolveMasterUserId } from "@/lib/pitd/resolve-master-user"
+import { getAuthenticatedUserId } from "@/lib/pitd/require-user"
 
 // --- Helpers ---------------------------------------------------------------
 
@@ -52,32 +53,55 @@ async function resolveUserId(req: NextRequest) {
     return { kind: "supabase" as const, ok: true, userId: data.user.id }
   }
 
-  // 2) Fallback: Pi login path (no Supabase token in header)
-  // Account page sends these headers.
-  const piUserId = req.headers.get("x-pi-user-id")?.trim() || ""
-  const piUsername = req.headers.get("x-pi-username")?.trim() || ""
-  if (!piUserId) {
+  // 2) Fallback: support BOTH Pi login (cookie/header) and email login (cookie session)
+  //    IMPORTANT: Pi Browser often has no Supabase auth session; we must accept pitodo_pi_user cookie.
+  const headerPiUserId = req.headers.get("x-pi-user-id")?.trim() || ""
+  const headerPiUsername = req.headers.get("x-pi-username")?.trim() || ""
+
+  const fallbackUserId = headerPiUserId || (await getAuthenticatedUserId(req)) || ""
+  if (!fallbackUserId) {
     return { kind: "none" as const, ok: false, reason: "Missing auth" }
   }
 
-  // Basic verification (server-side) to reduce spoofing:
-  // Ensure this Pi user exists in DB and username matches (if provided).
   const admin = getSupabaseAdminClient()
 
-  const { data: piRow, error: piErr } = await admin
-    .from("pi_users")
-    .select("id, pi_username")
-    .eq("id", piUserId)
-    .maybeSingle()
+  const isLikelyUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
 
-  if (piErr || !piRow?.id) {
-    return { kind: "pi" as const, ok: false, reason: "Pi user not found" }
-  }
-  if (piUsername && piRow.pi_username && piUsername !== piRow.pi_username) {
-    return { kind: "pi" as const, ok: false, reason: "Pi username mismatch" }
+  // Try to validate as Pi user first (id or username). If not found, treat as Supabase user id.
+  let piRow:
+    | {
+        id: string
+        pi_username: string | null
+      }
+    | null = null
+
+  if (isLikelyUuid(fallbackUserId)) {
+    const { data, error } = await admin
+      .from("pi_users")
+      .select("id, pi_username")
+      .eq("id", fallbackUserId)
+      .maybeSingle()
+    if (!error && data?.id) piRow = data
+  } else {
+    const { data, error } = await admin
+      .from("pi_users")
+      .select("id, pi_username")
+      .eq("pi_username", fallbackUserId)
+      .maybeSingle()
+    if (!error && data?.id) piRow = data
   }
 
-  return { kind: "pi" as const, ok: true, userId: piUserId }
+  if (piRow) {
+    // If the client provided an explicit username header, verify it matches.
+    const claimed = headerPiUsername
+    if (claimed && piRow.pi_username && claimed !== piRow.pi_username) {
+      return { kind: "pi" as const, ok: false, reason: "Pi username mismatch" }
+    }
+    return { kind: "pi" as const, ok: true, userId: piRow.id }
+  }
+
+  // Not a Pi user row => assume Supabase Auth user id (email/username login).
+  return { kind: "supabase" as const, ok: true, userId: fallbackUserId }
 }
 
 // --- Route -----------------------------------------------------------------

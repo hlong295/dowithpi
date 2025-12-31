@@ -1,3 +1,4 @@
+/* BUILD_ID: DEBUG_UI_2025-12-31 */
 /* BUILD_ID: 2025-12-31_01-55-24 */
 import type React from "react"
 import type { Metadata, Viewport } from "next"
