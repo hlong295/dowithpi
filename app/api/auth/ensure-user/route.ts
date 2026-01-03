@@ -32,9 +32,11 @@ export async function POST(request: Request) {
     const isUuid = (s: string) =>
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(s || ""))
 
-    const fromPi = Boolean(metadata?.from_pi) || (!!metadata?.username && !email)
+    const fromPi = Boolean(body?.fromPi) || Boolean(metadata?.fromPi) || Boolean(metadata?.from_pi) || (!!metadata?.username && !email);
+    const piUsername = (body?.piUsername || body?.pi_username || metadata?.pi_username || metadata?.piUsername || metadata?.username) ? String(body?.piUsername || body?.pi_username || metadata?.pi_username || metadata?.piUsername || metadata?.username) : undefined;
     const piUid: string | undefined =
-      (metadata?.pi_uid ? String(metadata.pi_uid) : undefined) || (fromPi && !isUuid(String(userId)) ? String(userId) : undefined)
+      (metadata?.pi_uid ? String(metadata.pi_uid) : undefined) ||
+      (fromPi && userId && !isUuid(String(userId)) ? String(userId) : undefined);
 
     if (debugEnabled) debug.push({ step: "request", userId, email: email || null, hasMetadata: Boolean(metadata) })
 
@@ -108,7 +110,7 @@ export async function POST(request: Request) {
     // - If userId is uuid -> use it
     // - If this is a Pi call and we only have piUid -> resolve pi_users.id by pi_uid
     let candidateUserIdForSync: string = String(userId)
-    if (!isUuid(candidateUserIdForSync) && fromPi && piUid) {
+    if (fromPi && piUid) {
       try {
         const { data: piRow } = await adminSupabase.from("pi_users").select("id").eq("pi_uid", piUid).maybeSingle()
         if ((piRow as any)?.id) {
@@ -244,7 +246,15 @@ export async function POST(request: Request) {
         address: existingWallet?.address || makeAddress(),
       }
 
-      await adminSupabase.from("pitd_wallets").upsert(walletUpsert, { onConflict: "user_id" })
+      const { error: pitdWalletUpsertErr } = await adminSupabase
+        .from("pitd_wallets")
+        .upsert(walletUpsert, { onConflict: "user_id" });
+
+      if (pitdWalletUpsertErr) {
+        throw new Error(
+          `PITD wallet upsert failed: ${pitdWalletUpsertErr.message} | debug=${JSON.stringify({ masterUserId, candidateUserIdForSync, piUid, piUsername })}`
+        );
+      }
 
 
       const result = {
@@ -319,7 +329,15 @@ export async function POST(request: Request) {
       address: existingWallet?.address || makeAddress(),
     }
 
-    await adminSupabase.from("pitd_wallets").upsert(walletUpsert, { onConflict: "user_id" })
+    const { error: pitdWalletUpsertErr } = await adminSupabase
+      .from("pitd_wallets")
+      .upsert(walletUpsert, { onConflict: "user_id" });
+
+    if (pitdWalletUpsertErr) {
+      throw new Error(
+        `PITD wallet upsert failed: ${pitdWalletUpsertErr.message} | debug=${JSON.stringify({ masterUserId, candidateUserIdForSync, piUid, piUsername })}`
+      );
+    }
 
     await syncLoginFlags(newUser.id)
 
