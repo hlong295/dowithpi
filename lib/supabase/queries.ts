@@ -1,36 +1,10 @@
 import { getSupabaseBrowserClient } from "./client"
 
-export async function getUserByPiUid(piUid: string, isServer = false) {
-  // IMPORTANT (Vercel build fix): Do NOT statically import server-only modules (next/headers)
-  // into client bundles. Only load the server client dynamically when needed.
-  const supabase = isServer
-    ? await (await import("./server")).getSupabaseServerClient()
-    : getSupabaseBrowserClient()
-
-  const { data, error } = await supabase.from("pi_users").select("*").eq("pi_uid", piUid).single()
-
-  if (error && error.code !== "PGRST116") {
-    console.error("[v0] getUserByPiUid error:", error)
-    return null
-  }
-
-  return data
-}
-
-export async function getUserByUsername(username: string, isServer = false) {
-  const supabase = isServer
-    ? await (await import("./server")).getSupabaseServerClient()
-    : getSupabaseBrowserClient()
-
-  const { data, error } = await supabase.from("pi_users").select("*").eq("pi_username", username).maybeSingle()
-
-  if (error && error.code !== "PGRST116") {
-    console.error("[v0] getUserByUsername error:", error)
-    return null
-  }
-
-  return data
-}
+// NOTE (Vercel build fix):
+// This module is imported by client components (e.g. lib/auth-context.tsx).
+// Therefore it MUST NOT import or reference server-only modules such as `next/headers`.
+// Any server-only queries should live in a separate file (e.g. queries.server.ts) and be used
+// ONLY by route handlers / server components.
 
 export async function createOrUpdatePiUser(userData: { piUid: string; piUsername: string; accessToken: string }) {
   console.log("[v0] createOrUpdatePiUser: Calling API with:", {
