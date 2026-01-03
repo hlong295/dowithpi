@@ -197,6 +197,7 @@ async function upsertPiUser(piUid: string, piUsername: string) {
 		}
 	}
 
+<<<<<<< HEAD
 	// Final sanity check (Pi Browser has no console): verify master users row exists.
 	const { data: usersRowVerify, error: usersVerifyErr } = await usersClient
 		.from("users")
@@ -212,6 +213,8 @@ async function upsertPiUser(piUid: string, piUsername: string) {
 		);
 	}
 
+=======
+>>>>>>> 7f3ff09420d4fb19647111c4e86f0fa14b4a7116
 	if (existingUser) {
     console.log("[v0] Updating existing Pi user:", existingUser.id)
 
