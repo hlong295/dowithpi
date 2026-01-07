@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { getAuthenticatedUserId } from "@/lib/pitd/require-user"
 
 const PI_API_BASE = "https://api.minepi.com/v2"
 
@@ -13,9 +13,8 @@ export async function POST(request: NextRequest) {
     const { paymentId } = await request.json()
     if (!paymentId) return NextResponse.json({ error: "Missing paymentId" }, { status: 400 })
 
-    const cookieStore = await cookies()
-    const userCookie = cookieStore.get("pitodo_user")
-    if (!userCookie) {
+    const userId = getAuthenticatedUserId()
+    if (!userId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 

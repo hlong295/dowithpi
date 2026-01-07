@@ -4,7 +4,7 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import { type NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { getAuthenticatedUserId } from "@/lib/pitd/require-user"
 
 const PI_API_BASE = "https://api.minepi.com/v2"
 
@@ -40,11 +40,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing paymentId" }, { status: 400 })
     }
 
-    // Keep existing auth guard (do NOT change login flows)
-    // cookies() is synchronous in Route Handlers.
-    const cookieStore = cookies()
-    const userCookie = cookieStore.get("pitodo_user")
-    if (!userCookie) {
+    // Auth: accept BOTH Pi-user cookie and email-user cookie using the existing shared helper.
+    // (Do not touch/alter the login flow; only make the payment APIs read the correct cookie.)
+    const userId = getAuthenticatedUserId()
+    if (!userId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 

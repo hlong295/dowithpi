@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { type NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { getAuthenticatedUserId } from "@/lib/pitd/require-user"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 
 const PI_API_BASE = "https://api.minepi.com/v2"
@@ -39,9 +39,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Keep existing auth guard (do NOT change login flows)
-    const cookieStore = await cookies()
-    const userCookie = cookieStore.get("pitodo_user")
-    if (!userCookie) {
+    const userId = getAuthenticatedUserId()
+    if (!userId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
     // ----------------------------
     let dbDebug: any = null
     try {
-      const user = JSON.parse(userCookie.value)
+      // userId already resolved via shared auth helper
       const nowIso = new Date().toISOString()
       const supabaseAdmin = getSupabaseAdminClient()
 
@@ -167,7 +166,7 @@ export async function POST(request: NextRequest) {
           const { data: ord, error: orderErr } = await supabaseAdmin
             .from("orders")
             .insert({
-              redeemer_id: user.id,
+              redeemer_id: userId,
               provider_id: providerId,
               total_amount: totalAmount,
               currency: "PI",
@@ -187,7 +186,7 @@ export async function POST(request: NextRequest) {
         if (orderRow) {
           // Upsert pi_payments row (create if missing)
           const payInsertPayload: any = {
-            user_id: user.id,
+            user_id: userId,
             pi_payment_id: paymentId,
             order_id: orderRow.id,
             amount: totalAmount,
@@ -234,7 +233,7 @@ export async function POST(request: NextRequest) {
           if (productId && totalAmount && !Number.isNaN(totalAmount)) {
             const unitPrice = qty > 0 ? totalAmount / qty : totalAmount
             const { error: purErr } = await supabaseAdmin.from("user_purchases").insert({
-              user_id: user.id,
+              user_id: userId,
               product_id: productId,
               quantity: qty,
               unit_price: unitPrice,
