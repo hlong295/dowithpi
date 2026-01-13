@@ -1,0 +1,382 @@
+"use client"
+
+import { Header } from "@/components/header"
+import { BottomNav } from "@/components/bottom-nav"
+import { useLanguage } from "@/lib/language-context"
+import { ProductCard } from "@/components/product-card"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import {
+  ArrowRight,
+  Zap,
+  Star,
+  Sparkles,
+  DollarSign,
+  ArrowLeftRight,
+  Heart,
+  HelpCircle,
+  MapPin,
+  Gift,
+} from "lucide-react"
+import { useState, useEffect } from "react"
+
+export default function HomePage() {
+  const { t, language } = useLanguage()
+  const router = useRouter()
+
+  const [flashSaleProducts, setFlashSaleProducts] = useState<any[]>([])
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([])
+  const [newProducts, setNewProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [piRates, setPiRates] = useState({
+    buyPrice: "...",
+    sellPrice: "...",
+    loading: true,
+  })
+
+  useEffect(() => {
+    const CACHE_KEY = "pitodo_home_feed_v1"
+    const CACHE_TTL_MS = 30_000
+    let hadFreshCache = false
+
+    // Fast path: render from session cache first (Pi Browser is slow).
+    try {
+      const cachedRaw = sessionStorage.getItem(CACHE_KEY)
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw)
+        const age = typeof cached?.t === "number" ? Date.now() - cached.t : Number.POSITIVE_INFINITY
+        if (age <= CACHE_TTL_MS && cached?.data) {
+          setFlashSaleProducts(cached.data.flashSaleProducts || [])
+          setFeaturedProducts(cached.data.featuredProducts || [])
+          setNewProducts(cached.data.newProducts || [])
+          setLoading(false)
+          hadFreshCache = true
+        }
+      }
+    } catch {
+      // ignore cache errors
+    }
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        if (!cancelled && !hadFreshCache) setLoading(true)
+        const res = await fetch("/api/feed/home")
+        const data = await res.json()
+        if (cancelled) return
+        setFlashSaleProducts(data.flashSaleProducts || [])
+        setFeaturedProducts(data.featuredProducts || [])
+        setNewProducts(data.newProducts || [])
+        try {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), data }))
+        } catch {
+          // ignore
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    async function fetchPiRates() {
+      try {
+        setTimeout(() => {
+          setPiRates({
+            buyPrice: "...",
+            sellPrice: "...",
+            loading: false,
+          })
+        }, 500)
+      } catch (error) {
+        console.error("Error fetching Pi rates:", error)
+        setPiRates({
+          buyPrice: "...",
+          sellPrice: "...",
+          loading: false,
+        })
+      }
+    }
+
+    fetchPiRates()
+  }, [])
+
+  const handleRedeem = (productId: string) => {
+    router.push(`/product/${productId}`)
+  }
+
+  const featureBlocks = [
+    {
+      id: "buy-sell-pi",
+      icon: <DollarSign className="h-6 w-6 text-white" />,
+      title: "Mua - Bán Pi",
+      description: "Mua Pi tích lũy - Bán Pi khi cần",
+      gradient: "from-emerald-500 to-teal-500",
+      action: () => router.push("/buy-sell-pi"),
+      contrast: "high",
+      content: (
+        <div className="mt-2 space-y-1 border-t border-emerald-100 pt-2">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-600">Giá mua Pi:</span>
+            <span className="text-xs font-semibold text-emerald-600">{piRates.buyPrice} VND</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-600">Giá bán Pi:</span>
+            <span className="text-xs font-semibold text-emerald-600">{piRates.sellPrice} VND</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "deposit-pitd",
+      icon: <img src="/ICON_PITD_50x50.png" alt="PITD Token" className="h-6 w-6" />,
+      title: "Nạp PITD Token",
+      description: "PITD giúp bạn dùng Pi an toàn hơn",
+      gradient: "from-amber-400 via-yellow-500 to-amber-600",
+      action: () => router.push("/deposit-pitd"),
+      contrast: "high",
+      content: (
+        <div className="mt-2 space-y-1.5 border-t border-amber-100 pt-2">
+          <div className="flex items-start gap-1.5">
+            <span className="text-[10px] leading-tight">📅 Check-in mỗi ngày</span>
+          </div>
+          <div className="flex items-start gap-1.5">
+            <span className="text-[10px] leading-tight">🎁 Quay số & hoạt động</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "exchange-goods",
+      icon: <ArrowLeftRight className="h-6 w-6 text-white" />,
+      title: "Trao đổi hàng hóa dịch vụ",
+      description: "Dùng PI - PITD đổi hàng hóa và dịch vụ bạn cần",
+      gradient: "from-purple-500 to-pink-500",
+      action: () => router.push("/exchange"),
+      contrast: "medium",
+    },
+    {
+      id: "charity",
+      icon: <Heart className="h-6 w-6 text-white" />,
+      title: "Quỹ Từ Thiện - Ủng Hộ",
+      description: "Chung tay chia sẻ bằng Pi",
+      gradient: "from-rose-500 to-red-500",
+      action: () => router.push("/charity"),
+      contrast: "high",
+      content: (
+        <div className="mt-2 border-t border-rose-100 pt-2">
+          <p className="text-[10px] text-gray-600 leading-tight">Đóng góp ủng hộ bằng Pi</p>
+        </div>
+      ),
+    },
+    {
+      id: "support-services",
+      icon: <HelpCircle className="h-6 w-6 text-white" />,
+      title: "Dịch vụ hỗ trợ Pi",
+      description: "KYC, Vận hành Pi Node, Hỗ trợ khác",
+      gradient: "from-amber-500 to-orange-500",
+      action: () => router.push("/support"),
+      contrast: "high",
+    },
+    {
+      id: "locations",
+      icon: <MapPin className="h-6 w-6 text-white" />,
+      title: "Địa điểm trao đổi Pi",
+      description: "Tìm gần bạn",
+      gradient: "from-cyan-500 to-blue-500",
+      action: () => router.push("/locations"),
+      contrast: "medium",
+    },
+  ]
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 pb-20">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+            <p className="mt-4 text-purple-600">{t("loading")}</p>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 pb-20">
+      <Header />
+
+      <main className="container mx-auto px-4 py-6 space-y-10">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => router.push("/lucky-spin")}
+            className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 hover:from-yellow-500 hover:via-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl transition-all duration-300 text-left group relative overflow-hidden"
+          >
+            {/* Left side: Icon + Content */}
+            <div className="flex items-center gap-3 flex-1">
+              <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg flex-shrink-0 animate-pulse">
+                <Gift className="h-7 w-7 text-white" />
+              </div>
+
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-white leading-tight">Quay số trúng thưởng</h3>
+                <p className="text-xs text-white/90 leading-snug mt-0.5">Mỗi ngày 1 lượt - Có quà liền</p>
+                {/* Pi/PITD reward highlight */}
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-sm font-bold text-yellow-200 animate-pulse">🎁 Nhận Pi hoặc PITD</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side: Badge + Arrow stacked vertically */}
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0 ml-2">
+              <div className="bg-white/95 backdrop-blur-sm px-2.5 py-0.5 rounded-full shadow-md">
+                <span className="text-[10px] font-bold text-orange-600">FREE mỗi ngày</span>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-1 transition-transform duration-300">
+                <ArrowRight className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 max-w-4xl mx-auto">
+          {featureBlocks.map((block) => (
+            <button
+              key={block.id}
+              onClick={block.action}
+              className={`flex flex-col p-3 rounded-2xl bg-white hover:shadow-xl transition-all duration-300 text-left group ${
+                block.contrast === "high"
+                  ? "border-2 border-purple-200/80 shadow-md"
+                  : "border border-purple-100/50 shadow-sm"
+              }`}
+            >
+              <div className="flex items-center">
+                <div
+                  className={`h-10 w-10 rounded-xl bg-gradient-to-br ${block.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}
+                >
+                  {block.icon}
+                </div>
+                <h3 className="ml-2.5 text-xs font-bold text-gray-800 leading-tight">{block.title}</h3>
+              </div>
+              <p className="text-[10px] text-gray-500 leading-snug mt-2 w-full">{block.description}</p>
+              {block.content && <div className="w-full">{block.content}</div>}
+            </button>
+          ))}
+        </div>
+
+        {flashSaleProducts.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md">
+                  <Zap className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                  Flash Sale
+                </h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/exchange?filter=flash")}
+                className="gap-1 hover:bg-purple-100 text-purple-700"
+              >
+                {t("viewAll")}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+              {flashSaleProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  {...product}
+                  onRedeem={() => handleRedeem(product.id)}
+                  showActionButton={false}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {featuredProducts.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-md">
+                  <Star className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  Sản Phẩm Nổi Bật
+                </h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/exchange?filter=featured")}
+                className="gap-1 hover:bg-purple-100 text-purple-700"
+              >
+                {t("viewAll")}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+              {featuredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  {...product}
+                  onRedeem={() => handleRedeem(product.id)}
+                  showActionButton={false}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {newProducts.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Sản Phẩm Mới
+                </h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/exchange?filter=new")}
+                className="gap-1 hover:bg-purple-100 text-purple-700"
+              >
+                {t("viewAll")}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+              {newProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  {...product}
+                  onRedeem={() => handleRedeem(product.id)}
+                  showActionButton={false}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <BottomNav />
+    </div>
+  )
+}
